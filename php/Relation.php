@@ -19,9 +19,12 @@
                 return false;
             }
 
-            $sql = "SELECT * FROM `relations` WHERE (
-                status='p' AND from=:from AND to=:to) OR (
-                status='p' AND from=:to AND to=:from)";
+            $sql = "SELECT * FROM `relations` 
+                WHERE (
+                    status='p' AND from=:from AND to=:to
+                ) OR (
+                    status='p' AND from=:to AND to=:from
+                )";
 
             if (is_array($query->fetch(PDO::FETCH_ASSOC))) {
                 $this->error = 'Your request is pending.';
