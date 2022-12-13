@@ -1,0 +1,38 @@
+<?php
+    class Relation {
+        protected $db;
+        public $error;
+
+        public function __construct() {
+            $this->db = new Database();
+            $this->error = '';
+        }
+
+        public function request($from, $to) {
+            $sql = 'SELECT * FROM `relations` WHERE from=:from AND to=: to';
+
+            $query = $this->db->prepare($sql);
+            $query->execute(array(':from' => $from, ':to' => $to));
+
+            if (is_array($query->fetch(PDO::FETCH_ASSOC))) {
+                $this->error = 'You have already sent a request to this user.';
+                return false;
+            }
+
+            $sql = "SELECT * FROM `relations` WHERE (
+                status='p' AND from=:from AND to=:to) OR (
+                status='p' AND from=:to AND to=:from)";
+
+            if (is_array($query->fetch(PDO::FETCH_ASSOC))) {
+                $this->error = 'Your request is pending.';
+                return false;
+            }
+
+            $sql = 'INSERT INTO `relations` (from, to, status) VALUES (:from, :to, :status)';
+
+            $query = $this->db->prepare($sql);
+            $query->execute(array(':from' => $from, ':to' => $to, ':status' => 'p'));
+
+            return true;
+        }
+    }
