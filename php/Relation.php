@@ -82,4 +82,39 @@
 
             return true;
         }
+
+        public function cancelRequest($from, $to) {
+            $sql = "DELETE FROM relations (from, to, status) VALUES(:from, :to, :status)";
+
+            $query = $this->db->prepare($sql);
+            $query->execute([
+                ':from' => $from,
+                ':to' => $to,
+                ':status' => 'p'
+            ]);
+
+            return true;
+        }
+
+
+        public function unfriend($from, $to) {
+            $sql = "DELETE * FROM `relations` 
+                WHERE (
+                    status='p' AND from=:from AND to=:to
+                ) OR (
+                    status='p' AND from=:to AND to=:from
+                )";
+
+            $query = $this->db->prepare($sql);
+            $query->execute([
+                ':from' => $from,
+                ':to' => $to,
+                ':from' => $to,
+                ':to' => $from
+            ]);
+
+            return true
+        }
+
+        
     } 
