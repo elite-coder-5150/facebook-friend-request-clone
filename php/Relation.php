@@ -1,5 +1,7 @@
 <?php
+
     class Relation {
+        public $unblock;
         protected $db;
         public $error;
 
@@ -9,112 +11,155 @@
         }
 
         public function request($from, $to) {
-            $sql = 'SELECT * FROM `relations` WHERE from=:from AND to=: to';
+            if ($this->alreadyFriends($from, $to)) {
+                return false;
+            } else if ($this->isPending($from, $to)) {
+                return false;
+            } else {
+                $sql = "INSERT INTO `relation` (`from`, `to`, `status`) VALUES (?, ?, 'P')";
+                $query = $this->db->prepare($sql);
+                $query->execute([$from, $to]);
+                return true;
+            }
+        }
+        private function alreadyFriends($from, $to) {
+            $sql = "SELECT * FROM `relation` WHERE `from`=? AND `to`=? AND `status`='F'";
 
             $query = $this->db->prepare($sql);
-            $query->execute(array(':from' => $from, ':to' => $to));
-
-            /**
-             * 
-             * if (is_array($query->fetch(PDO::FETCH_ASSOC))) {
-             *  $this->error = 'You have already sent a request to this user.';
-             * return false;
-             * } */
-            if ($query->rowCount() == 1) {
-                $this->error = 'You are already send a request to this usr.';
-                return false;
-            }
-
-            $sql = "SELECT * FROM `relations` 
-                WHERE (
-                    status='p' AND from=:from AND to=:to
-                ) OR (
-                    status='p' AND from=:to AND to=:from
-                )";
-
-            /*
-            if (is_array($query->fetch(PDO::FETCH_ASSOC))) {
-                $this->error = 'Your request is pending.';
-                return false;
-            }*/
+            $query->execute([$from, $to]);
 
             if ($query->rowCount() == 1) {
-                $this->error = 'Your request is pending';
+                $this->error = "Already added as friends";
+                return true;
+            } else if ($query->rowCount() == 0) {
                 return false;
             }
+        }
 
-            $sql = 'INSERT INTO `relations` (from, to, status) VALUES (:from, :to, :status)';
+        private function isPending($from, $to) {
+            $sql = "SELECT * FROM `relation` WHERE
+                (`status`='P' AND `from`=? AND `to`=?) OR
+                (`status`='P' AND `from`=? AND `to`=?)";
 
             $query = $this->db->prepare($sql);
-            $query->execute([
-                ':from' => $from, 
-                ':to' => $to, 
-                ':status' => 'p'
-            ]);
+            $query->execute([$from, $to, $to, $from]);
 
-            return true;
+            if ($query->rowCount() == 1) {
+                $this->error = "Already has a pending friend request";
+                return true;
+            } else if ($query->rowCount() == 0) {
+                return false;
+            }
         }
 
         public function accept($from, $to) {
-            $sql = "UPDATE `relations` SET status=:status WHERE from=:from AND to=:to";
+            $this->updateRequest($from, $to, 'F');
+
+            $sql = "INSERT INTO `relation` 
+                    (`from`, `to`, `status`) 
+                    VALUES (?, ?, 'F')";
+            $query = $this->db->prepare($sql);
+            $query->execute([$to, $from]);
+
+            return true;
+        }
+
+        private function updateRequest($from, $to, $status): void {
+            $sql = "UPDATE relation SET status=?
+                WHERE `from`=? AND `to`=? AND `status`='P'";
 
             $query = $this->db->prepare($sql);
+            $query->execute([$status, $from, $to]);
 
-            $query->execute([
-                ':status' => 'f', 
-                ':from' => $from, 
-                ':to' => $to
-            ]);
-
-            if (is_array($query->fetch(PDO::FETCH_ASSOC))) {
-                $this->error = 'invalid friend request.';
-                return false;
+            if ($query->rowCount() == 0) {
+                $this->error = "Invalid friend request";
             }
-
-            $sql = "INSERT INTO `relations` (from, to, status) VALUES (:from, :to, :status)";
+        }
+        public function cancel($from, $to) {
+            $sql = "DELETE FROM `relation` WHERE `from`=? AND `to`=? AND `status`='P'";
 
             $query = $this->db->prepare($sql);
-            $query->execute([
-                ':from' => $to, 
-                ':to' => $from, 
-                ':status' => 'f'
-            ]);
+            $query->execute([$from, $to]);
 
             return true;
         }
 
-        public function cancelRequest($from, $to) {
-            $sql = "DELETE FROM relations (from, to, status) VALUES(:from, :to, :status)";
+        public function block($from, $to, $blocked = true) {
+            if ($blocked) {
+                $sql = "INSERT INTO `relation` (`from`, `to`, `status`) VALUES (?, ?, 'B')";
 
-            $query = $this->db->prepare($sql);
-            $query->execute([
-                ':from' => $from,
-                ':to' => $to,
-                ':status' => 'p'
-            ]);
+                $query = $this->db->prepare($sql);
+                $query->execute([$from, $to]);
+            } else {
+                $sql = "DELETE FROM `relation` WHERE `from`=? AND `to`=? AND `status`='B'";
 
+                $query = $this->db->prepare($sql);
+                $query->execute([$from, $to]);
+
+                $this->request($from, $to);
+            }
+            $this->unfriend($from, $to);
             return true;
         }
 
-
+        public function unblock($from, $to) {
+//            $this->block($from, $to, false);
+            $sql = "DELETE FROM `relation` WHERE `from`=? AND `to`=? AND `status`='B'";
+            $query = $this->db->prepare($sql);
+            $query->execute([$from, $to]);
+            return true;
+        }
         public function unfriend($from, $to) {
-            $sql = "DELETE * FROM `relations` 
-                WHERE (
-                    status='p' AND from=:from AND to=:to
-                ) OR (
-                    status='p' AND from=:to AND to=:from
-                )";
+            $sql = "DELETE FROM `relation` WHERE
+                (`from`=? AND `to`=?) OR
+                (`from`=? AND `to`=?)";
 
             $query = $this->db->prepare($sql);
-            $query->execute([
-                ':from' => $from,
-                ':to' => $to,
-                ':from' => $to,
-                ':to' => $from
-            ]);
+            $query->execute([$from, $to, $to, $from]);
 
-            return true
+            return true;
         }
 
-        
+        public function getRequest($user_id) {
+            $req = ["in" => [], "out" => []];
+
+            $sql = "SELECT * FROM `relation` WHERE `to`=? AND `status`='P'";
+
+            $query = $this->db->prepare($sql);
+            $query->execute([$user_id]);
+
+            while ($query->fetchAll(PDO::FETCH_OBJ)) {
+                $req["in"][] = $query->fetchAll(PDO::FETCH_OBJ);
+            }
+            return $req;
+        }
+
+        public function getFriends($user_id) {
+            $sql = "SELECT * FROM `relation` WHERE `from`=? AND `status`='F'";
+
+            $query = $this->db->prepare($sql);
+            $query->execute([$user_id]);
+
+            $this->getBlockedUsers($user_id);
+
+            return $query->fetchAll(PDO::FETCH_OBJ);
+        }
+
+        public function getBlockedUsers($user_id) {
+            $sql = "SELECT * FROM `relation` WHERE `from`=? AND `status`='B'";
+
+            $query = $this->db->prepare($sql);
+            $query->execute([$user_id]);
+
+            return $query->fetchAll(PDO::FETCH_OBJ);
+        }
+
+        public function getUsers($user_id) {
+            $sql = "SELECT * FROM `users` WHERE `id`!=?";
+
+            $query = $this->db->prepare($sql);
+            $query->execute([$user_id]);
+
+            return $query->fetchAll(PDO::FETCH_OBJ);
+        }
     } 
