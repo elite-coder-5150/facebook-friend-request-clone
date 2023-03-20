@@ -1,0 +1,60 @@
+/* (A) WHOLE PAGE */
+* {
+    font-family: Arial, Helvetica, sans-serif;
+    box-sizing: border-box;
+}
+body { padding: 10px; }
+.flex {
+    display: flex;
+    align-items: center;
+}
+
+/* (B) NOTIFICATION BAR */
+.ok, .nok {
+    padding: 10px;
+    margin-bottom: 10px;
+}
+.ok {
+    border: 1px solid #7ae9a7;
+    background: #d7ffe7;
+}
+.nok {
+    border: 1px solid #e97a7a;
+    background: #ffd7d7;
+}
+
+/* (C) USERS */
+/* (C1) CURRENT USER */
+#userList, #userNow { max-width: 400px; }
+#userNow {
+    padding: 10px;
+    color: #fff;
+    background: #2e2e2e;
+}
+#userNow img {
+    width: 48px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+#userNow strong {
+    text-transform: uppercase;
+    font-size: 24px;
+}
+
+/* (C2) USERS LIST */
+.uRow {
+    padding: 10px;
+    background: #f5f5f5;
+    border: 1px solid #dbdbdb;
+    margin-top: 15px;
+}
+.uName { flex-grow: 1; }
+.uRow button {
+    width: 80px;
+    height: 50px;
+    margin-left: 5px;
+    border: 0;
+    color: #fff;
+    background: #3069d2;
+    cursor: pointer;
+}
